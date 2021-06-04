@@ -1,0 +1,184 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(psych)
+```
+
+```{r}
+data <- read.csv('data.csv')
+```
+
+
+```{r}
+#View(data)
+```
+
+```{r}
+data$HG_NHG<-as.factor(data$HG_NHG)
+data$HG_NHG2<-as.factor(data$HG_NHG2)
+```
+
+```{r}
+data$Status1<-as.factor(data$Status1)
+```
+
+```{r}
+summary(data)
+```
+
+ 
+```{r}
+library(dplyr)
+data %>% count(Status1, HG_NHG)
+  
+```
+
+```{r}
+library(ggplot2)
+data %>%
+  group_by(Status1) %>%
+  ggplot(aes(value, color=Status1)) + 
+  geom_histogram(aes(fill = Status1), bins = 20) +
+  facet_wrap(~Status1) +
+  theme_grey()+
+  labs(x= "Anzahl der Perceptions of corruption",y = "Anzahl" )
+```
+
+
+```{r}
+data %>%
+  group_by(HG_NHG) %>%
+  ggplot(aes(value, color=HG_NHG)) + 
+  geom_histogram(aes(fill = HG_NHG), bins = 20) +
+  facet_wrap(~HG_NHG) +
+  theme_grey()+
+  labs(x= "Anzahl der Perceptions of corruption",y = "Anzahl" )
+```
+
+```{r}
+ggplot(data, aes(x=value))+
+geom_histogram(bins = 25)+
+theme_grey()+
+facet_wrap(Status1~HG_NHG, ncol = 2)
+```
+
+
+
+```{r}
+ggplot(data, aes(Status1, value, fill=factor(HG_NHG))) +
+geom_boxplot() +
+theme_minimal()+
+labs(fill = "Income Level", x="Status", y="Anzahl Score")
+```
+
+
+```{r}
+ggplot(data, aes(x=HG_NHG, y=value, group=Status1, color = Status1))+
+  stat_summary(fun.y = mean, geom="point", size=3)+
+  stat_summary(fun.y = mean, geom="line")+
+  stat_summary(fun.data = mean_cl_normal, geom="errorbar",width=.2, size=.25)+
+  labs(x="Income Level", y="Corruption")+
+  theme_classic()
+
+```
+
+```{r}
+library(car)
+```
+
+
+```{r}
+leveneTest(value ~ Status1*HG_NHG, data = data, center = "mean")
+
+```
+
+Mit Welch-Korrektur: p < 0.05 => Ergebnis Signifikant –> Varianzen heterogen
+
+Ohne Welch-Korrektur: p > 0.05 => Ergebnis nicht Signifikant –> Varianzen homogen –> H0 mit Annahme Var1=Var2=… -> Var_n wird angenommen
+
+```{r}
+
+```
+
+
+```{r}
+
+multiAnova1 <- lm(value ~ Status1*HG_NHG, data = data)
+myAnova <- Anova(multiAnova1 , type = 3)
+myAnova
+```
+
+```{r}
+Statuswelch <- oneway.test(value ~ Status1, data = data, var.equal = F)
+Statuswelch
+```
+
+```{r}
+Incomewelch <- oneway.test(value ~ HG_NHG, data = data, var.equal = F)
+Incomewelch
+```
+
+```{r}
+Mixwelch <- oneway.test(value ~ HG_NHG*Status1, data = data, var.equal = F)
+Mixwelch
+```
+
+```{r}
+PostHoc <- aov(value ~ Status1*HG_NHG, data=data) 
+#Alternativ auch der Name des Zwischenspeichers "mehr" - PostHoc <- aov(mehr)  
+TukeyHSD(PostHoc)
+```
+
+```{r}
+library(rstatix)
+data['merge'] <- paste(data$Status1,data$HG_NHG)
+
+gm <- rbind(games_howell_test(data, value ~ Status1),games_howell_test(data, value ~ HG_NHG),games_howell_test(data, value ~ merge))
+gm
+```
+
+
+```{r}
+library(sjstats)
+```
+
+```{r}
+eta <- effectsize::eta_squared(multiAnova1, partial = TRUE)
+```
+
+```{r}
+eta
+```
+
+
+```{r}
+st <- sqrt(0.47/(1-0.47))
+
+sprintf("effectsize for Freedom Status: f= %.3f", st)
+```
+
+```{r}
+st <- sqrt(0.19/(1-0.19))
+sprintf("effectsize for Income Level: f= %.3f", st)
+```
+
+```{r}
+st <- sqrt(0.03/(1-0.03))
+sprintf("effectsize for Income Level X Freedom Status: f= %.3f", st)
+```
+
+According to result there is a relation between Freedom Hause index und  Corruption  (F(1, 111.85) = 98.595, p = 2.2e-16). H1 is accepted. Moreover for Income Level there are also differences  between Income level Corruption (F(1,140.36) = 89.419, p <  2.2e-16). H1 is accepted. The Interaction effects of  Income Level und Freedom Hause index  Corruption is significant (F(3,58.136) = 56.567, p < 2.2e-16). The effect of Income Leve is dependent on partially Freedom Hause index. H1  for interaction is accepted.
+
+Regarding the Posthoc test, the impact of Freedom and income level is clear, but their interaction should be analyzed carefully. for instance, the differences between non-democratic countrıes with high-income levels and democratic countries with low-income levels are not significant. 
+
+Die effect size ist not only for Freedom Hause index (f = 0.942) but also for income Level (f = 0.484) according to Cohen (1988) a strong effekt, and for interaction (f=0.176) is middle. 
+ 
+
+ 
+ 
+ 
+ 
+ 

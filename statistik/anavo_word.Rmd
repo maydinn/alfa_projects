@@ -1,0 +1,364 @@
+---
+title: "Multi Anova"
+output: html_notebook
+---
+
+## libraries
+
+```{r}
+library(foreign)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(car)
+library(haven)
+library(sjstats)
+library(rstatix)
+library(psych)
+```
+
+
+
+
+```{r}
+data <- read.dta("WVS_Cross-National_Wave_7_stata_v1_6.dta")
+```
+
+```{r}
+#View(data)
+```
+
+```{r}
+plyr::count(data, 'C_COW_ALPHA')
+```
+
+
+
+
+```{r}
+plyr::count(data, 'Q241')
+plyr::count(data, 'Q242')
+plyr::count(data, 'Q243')
+plyr::count(data, 'Q244')
+plyr::count(data, 'Q245')
+plyr::count(data, 'Q246')
+plyr::count(data, 'Q247')
+plyr::count(data, 'Q248')
+plyr::count(data, 'Q249')
+```
+
+Since numeric variables are required, string variables should be assigned numeric values
+
+
+```{r}
+data['dem1'] <- mapvalues(data$Q241, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem2'] <- mapvalues(data$Q242, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem3'] <- mapvalues(data$Q243, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem4'] <- mapvalues(data$Q244, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem5'] <- mapvalues(data$Q245, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem6'] <- mapvalues(data$Q246, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem7'] <- mapvalues(data$Q247, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem8'] <- mapvalues(data$Q248, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+data['dem9'] <- mapvalues(data$Q249, from = c('It is against democracy (spontaneous)','Not an essential characteristic of democracy','An essential characteristic of democracy'), to = c(0,1,10))
+```
+
+Create a new column as a dependent variable
+
+```{r}
+data['dem_num']<- (as.numeric(data$dem3) - as.numeric(data$dem5) + as.numeric(data$dem6) - as.numeric(data$dem8) + as.numeric(data$dem9)) / 5
+```
+
+Histogram for dependent variable
+
+```{r}
+hist(data$dem_num, main = "Histogram", ylab = "Count", xlab = "demoracy perception", col = "lightblue")
+```
+
+factors reducing affecting the level of education
+
+```{r}
+data['edu'] <- mapvalues(data$Q275, from = c('Early childhood education (ISCED 0) / no education',
+                                    'Primary education (ISCED 1)',
+                                    "Lower secondary education (ISCED 2)",
+                                    "Upper secondary education (ISCED 3)",
+                                    "Post-secondary non-tertiary education (ISCED 4)",
+                                    "Short-cycle tertiary education (ISCED 5)",
+                                    "Bachelor or equivalent (ISCED 6)",
+                                    "Master or equivalent (ISCED 7)",
+                                    "Doctoral or equivalent (ISCED 8)"), 
+          to = c("no-edu",
+                 "Primary",
+                 "Secondary",
+                 "Secondary",
+                 "Secondary",
+                 "Tertiary",
+                 "Tertiary",
+                 "Tertiary",
+                 "Tertiary"
+                 ))
+```
+ 
+Create a new data frame for the model
+
+```{r}
+data_sub <- subset.data.frame(data, select = c('D_INTERVIEW','dem3','dem5','dem6','dem8','dem9','H_URBRURAL', "edu"))
+```
+
+Create a new column as a dependent variable
+
+```{r}
+data_sub['dem_val']<-(
+  (as.numeric(data_sub$dem3)*sum(as.numeric(data_sub$dem3), na.rm = TRUE)  / 69867 /10) -
+  (as.numeric(data_sub$dem5)*sum(as.numeric(data_sub$dem5), na.rm = TRUE)  / 69867 /10) + 
+   (as.numeric(data_sub$dem6)*sum(as.numeric(data_sub$dem6), na.rm = TRUE)  / 69867 /10) - 
+    
+   (as.numeric(data_sub$dem8)*sum(as.numeric(data_sub$dem8), na.rm = TRUE)  / 69867 /10) + 
+  (as.numeric(data_sub$dem9)*sum(as.numeric(data_sub$dem9), na.rm = TRUE)  / 69867 /10)) /5
+```
+
+Create a new data frame for the model
+
+```{r}
+d_m <- data_sub[,c('edu',"dem_val", "H_URBRURAL")]
+```
+
+Delete missing values
+
+```{r}
+d_m <- na.omit(d_m)
+```
+
+Histogram for dependent variable
+
+```{r}
+hist(d_m$dem_val, main = "Histogram", ylab = "Anzahl", xlab = "democracy perception", col = "lightblue")
+```
+
+Education
+
+```{r}
+d_m %>%
+  group_by(edu) %>%
+  ggplot(aes(dem_val, color=edu)) + 
+  geom_histogram(aes(fill = edu), bins = 20) +
+  facet_wrap(~edu) +
+  theme_grey()+
+  labs(x= "democracy perception",y = "count" )
+```
+
+
+Location
+
+```{r}
+d_m %>%
+  group_by(H_URBRURAL) %>%
+  ggplot(aes(dem_val, color=H_URBRURAL)) + 
+  geom_histogram(aes(fill = H_URBRURAL), bins = 20) +
+  facet_wrap(~H_URBRURAL) +
+  theme_grey()+
+  labs(x= "democracy perception",y = "count" )
+```
+
+
+
+
+```{r}
+ggplot(d_m, aes(x=dem_val))+
+geom_histogram(bins = 25)+
+theme_grey()+
+facet_wrap(edu~H_URBRURAL, ncol = 2)
+
+```
+
+
+
+
+Boxplot
+
+
+```{r}
+ggplot(d_m, aes(H_URBRURAL, dem_val, fill=factor(edu))) +
+geom_boxplot() +
+theme_minimal()+
+labs(fill = "Education", x="Location", y="Count")
+```
+
+
+
+
+
+
+```{r}
+d_m %>%
+group_by(edu) %>%
+  dplyr::summarize(Anzahl = n(), Mittelwert = mean(dem_val), Median = median(dem_val), Standardabweichung = sd(dem_val)) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+At the non-education level, the average perception of democracy is 4.94 (SD = 1.47, n = 2967), At the primary level, the average perception of democracy is 5.03 (SD = 1.55, n = 8063), At the secondary level the perception is of democracy on average 5.39 (SD = 1.72, n = 31024), at the tertiary level of education the perception of democracy is on average 5.91 (SD = 1.78, n = 19122)
+
+
+```{r}
+d_m %>%
+group_by( H_URBRURAL) %>%
+  dplyr::summarize(Anzahl = n(), Mittelwert = mean(dem_val), Median = median(dem_val), Standardabweichung = sd(dem_val)) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+Beim Urban ist die Wahrnehmung der Demokratie im Durchschnitt 5.66 (SD = 1.81, n =40672), Beim Rural ist die Wahrnehmung der Demokratie im Durchschnitt 5.13 (SD = 1.53, n=20504).
+
+
+```{r}
+d_m %>%
+group_by(edu, H_URBRURAL) %>%
+  dplyr::summarize(Anzahl = n(), Mittelwert = mean(dem_val), Median = median(dem_val), Standardabweichung = sd(dem_val)) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+In urban the perception of democracy is on average 5.66 (SD = 1.81, n = 40672), in rural the perception of democracy is on average 5.13 (SD = 1.53, n = 20504).
+
+Not; Although the difference seems small, it is tolerable since there is a large data set.
+
+
+## 	Profildiagramm
+
+
+```{r}
+ggplot(d_m, aes(x=edu, y=dem_val, group=H_URBRURAL, color = H_URBRURAL))+
+  stat_summary(fun.y = mean, geom="point", size=3)+
+  stat_summary(fun.y = mean, geom="line")+
+  stat_summary(fun.data = mean_cl_normal, geom="errorbar",width=.2, size=.25)+
+  labs(x="Education", y="democracy perception")+
+  theme_classic()
+```
+
+
+Levene -Test 
+
+```{r}
+leveneTest(dem_val ~ edu*H_URBRURAL, data = data_sub, center = "mean")
+```
+
+In the present example, the Levene test is significant (F (7.61168) = 178.7, p = .000), so that heterogeneity of variance can be assumed. Since the variances are unfortunately not the same, it is recommended to carry out a correction using the Welch test.
+
+
+
+without Welch-Korrektur
+
+```{r}
+mehrAnova1 <- lm(dem_val ~ edu*H_URBRURAL, data = data_sub)
+myAnova <- Anova(mehrAnova1 , type = 3)
+myAnova
+```
+Gesamtmodel wird signifikant.
+
+
+with Welch-Korrektur
+
+```{r}
+educ <- oneway.test(dem_val ~ edu, data = d_m, var.equal = F)
+educ
+```
+
+There is a major effect that education levels have on the perception of democracy. (F (3.11969) = 756.52, p = .000). This means that the perception of democracy depends on the level of education
+
+```{r}
+loc <- oneway.test(dem_val ~ H_URBRURAL, data = d_m, var.equal = F)
+loc
+```
+
+There is one major effect of the location on the perception of democracy. (F (1.47683) = 1422, p = .000). That means that the perception of democracy is dependent on the location
+
+
+```{r}
+lage <- oneway.test(dem_val ~ edu*H_URBRURAL, data = d_m, var.equal = F)
+lage
+```
+
+The interaction term of educational level and location on the perception of democracy is also significant (F (7,9917.6) = 436.4, p = .000).
+
+
+##	Post-Hoc-Test
+
+
+```{r}
+PostHoc <- aov(dem_val ~ edu*H_URBRURAL, data = d_m) 
+TukeyHSD(PostHoc)
+```
+
+Since there is heterogeneity of variance, we should use Games Howell's test. For this we need new columns as an interaction.
+
+
+```{r}
+#first way
+ f1 <- function(a,b){
+  if (a == "Primary" & b == "Urban"){
+   return("Primary:Urban")
+  }else if(a == "no-edu" & b == "Urban"){
+   return("no-edu:Urban")
+  }else if(a == "Secondary" & b == "Urban"){
+   return("Secondary:Urban")
+  }else if(a == "Tertiary" & b == "Urban"){
+   return("Tertiary:Urban")
+  }else if (a == "Primary" & b == "Rural"){
+   return("Primary:Rural")
+  }else if(a == "no-edu" & b == "Rural"){
+   return("no-edu:Rural")
+  }else if(a == "Secondary" & b == "Rural"){
+   return("Secondary:Rural")
+  }else if(a == "Tertiary" & b == "Rural"){
+   return("Tertiary:Rural")
+  }
+ }
+
+d_m['eu'] <- mapply(f1, d_m$edu, d_m$H_URBRURAL)
+
+#second way
+d_m$eu <- paste(d_m$edu,d_m$H_URBRURAL)
+```
+
+```{r}
+head(d_m)
+```
+
+
+```{r}
+gm <- rbind(games_howell_test(d_m, dem_val ~ edu),games_howell_test(d_m, dem_val ~ H_URBRURAL),games_howell_test(d_m, dem_val ~ eu))
+gm
+```
+```{r}
+subset(gm, subset = p.adj.signif == "ns")
+```
+```{r}
+subset(gm, subset = estimate == max(gm$estimate))
+```
+
+
+
+```{r}
+eta <- effectsize::eta_squared(mehrAnova1, partial = TRUE)
+eta
+```
+
+
+
+
+```{r}
+for (i in 1:length(eta$Parameter)){
+  st <- sqrt(eta$Eta2_partial[i]/(1-eta$Eta2_partial[i]))
+
+  a <- sprintf("Effect size f=%s fürs f= %.3f", eta$Parameter[i],st)
+  print(a)
+}
+```
+
+
+
+
+It turns out that there is a difference between the level of education and the perception of democracy (F (3.11969) = 756.52, p <.000). H1 for the main effect A is accepted. In addition, depending on the location, there is a difference between the perception of democracy (F (1.47683) = 1422, p <.000). H1 for the main effect B is accepted. The interaction term of educational level and situation on the perception of democracy is significant (F (7,9917.6) = 436.4, p <.000). Therefore H1 for the interaction effect AXB is accepted
+
+The PostHoc was carried out with Games Howell. It shows that all groups (with the exception of Primary and non-education (p = 2.10e-02)) differ significantly in terms of educational level and location. And there was a significant difference between primary and non-education. In relation to the Games Howell table of results, the differences between the combination of non-education and primary with location also appear to be insignificant. In general,the differences between the Urban and the Rural is also based on education level, and rural areas follows urban areas one step behind. For instance, the differences between Urban with secondary level education and Rural with tertiary level is not clear.Finally, as expected, the biggest difference is between non-education rural and tertiary urban (e = 1.14, p = 0)
+
+
+The effect sizes are a weak effect for the main effect of educational level and location (f = 0.189, f = 0.103)
+

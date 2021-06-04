@@ -1,0 +1,128 @@
+---
+title: "cont_democ"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(psych)
+d <- read.csv('combined_set.csv')
+```
+
+
+
+
+```{r}
+head(d, 15)
+```
+
+
+```{r}
+describe(d)
+```
+
+```{r}
+d$Gapminder.Population <- log(d$Gapminder.Population)
+```
+
+```{r}
+describe(d)
+```
+
+
+```{r}
+d17 <-  subset.data.frame(d, subset = d$Year == 2017 )
+d17
+```
+
+```{r}
+d07 <-  subset.data.frame(d, subset = d$Year == 2007 )
+d07
+```
+
+
+```{r}
+hist(d17$Log.GDP.per.capita - d07$Log.GDP.per.capita)
+```
+
+
+```{r}
+library(car)
+qqPlot(d17$Log.GDP.per.capita - d07$Log.GDP.per.capita)
+```
+
+```{r}
+cor.test(d17$Log.GDP.per.capita , d07$Log.GDP.per.capita)
+```
+
+```{r}
+testVER<- t.test(d17$Log.GDP.per.capita, d07$Log.GDP.per.capita,alternative = "two.sided", paired = TRUE, conf.level = .95)
+testVER
+```
+
+```{r}
+diff <- testVER$estimate
+
+sed <- sd(d17$Log.GDP.per.capita - d07$Log.GDP.per.capita, na.rm = T)
+
+g <- diff/sed
+
+sprintf("Effektstärke: %.4f",g)
+```
+
+
+```{r}
+eff1 <- sqrt(testVER$statistic^2 / (testVER$statistic^2 + testVER$parameter))
+
+sprintf("Effektstärke: %.4f",eff1)
+```
+
+
+```{r}
+d_col <- colnames(d)
+```
+
+
+
+
+```{r}
+for (i in d_col[5:length(d_col)]){
+  a = d17 %>% pull (i)
+  hist(a, xlab = i, main =i)
+  
+}
+
+
+```
+
+
+
+```{r}
+for (i in d_col[5:length(d_col)]){
+ a = d17 %>% pull (i)
+  b = d07 %>% pull (i)
+  hist(a-b,xlab = i, main = i)
+}
+
+```
+
+```{r}
+
+for (i in d_col[5:length(d_col)]){
+  a = d17 %>% pull (i)
+  b = d07 %>% pull (i)
+   testVER<- t.test(a,b,alternative = "two.sided", paired = TRUE, conf.level = .95)
+   eff1 <- sqrt(testVER$statistic^2 / (testVER$statistic^2 + testVER$parameter))
+   diff <- testVER$estimate
+  sed <- sd(a -b, na.rm = T)
+  g <- diff/sed
+   a = sprintf("the t test for %s is t=%.4f, and p value is p=%.4f, and mean of the differences is e=%.4f, effect size f1=%.4f, second effect size f2= %.4f",i, testVER$statistic, testVER$p.value, testVER$estimate, eff1,g)
+   print(a)
+}
+
+```
+
+
+As it is seen, the results are quite interesting. Although there are many improvements in many areas, there are not any significant changes in Democratic Quality, Government Quality, and Confidence in Government and Social Support. Moreover, the sign of corruption perception is negative even though it is significant. 
+
+
